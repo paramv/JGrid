@@ -7,13 +7,13 @@ module.exports = function(grunt) {
         separator: '\n\n'
       },
       dist: {
-        src: ['src/**/*.js'],
+        src: ['License.js', 'src/**/*.js'],
         dest: 'build/<%= pkg.name %>.js'
       }
     },
     uglify: {
       options: {
-        banner: '/*! <%= pkg.name %> <%= grunt.template.today("dd-mm-yyyy") %> */\n'
+        preserveComments: 'some'
       },
       dist: {
         files: {

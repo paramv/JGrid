@@ -1,2 +1,2 @@
-[JGrid] - Ambitious ,jQuery based Grid library
+[JGrid]() - jQuery based Grid library
 ==================================================

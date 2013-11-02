@@ -1,0 +1,35 @@
+{
+  "name": "JGrid",
+  "version": "0.1.0",
+  "description": "A jQuery based Grid/Table library.",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/paramv/JGrid.git"
+  },
+  "keywords": [
+    "jQuery",
+    "Grid",
+    "Table",
+    "Library",
+    "Grid",
+    "Library",
+    "Grid",
+    "PLugin"
+  ],
+  "author": "Parameswaran.V",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/paramv/JGrid/issues"
+  },
+  "devDependencies": {
+    "grunt": "~0.4.1",
+    "grunt-contrib-uglify": "~0.2.5",
+    "grunt-contrib-qunit": "~0.3.0",
+    "grunt-contrib-concat": "~0.3.0",
+    "grunt-contrib-jshint": "~0.7.1"
+  }
+}

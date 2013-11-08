@@ -54,6 +54,9 @@ var model, store, grid,gridGrouped;
 			'type': 'ajax',
 			'root': 'data',
 			'record': 'rows'
+		},
+		'sorters':{
+			'location':'ASC'
 		}
 	});
 

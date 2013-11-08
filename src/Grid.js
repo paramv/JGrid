@@ -337,6 +337,16 @@
 		this.gridEl.remove();
 	};
 
+	/**
+	 * Call the underlying store's sort method
+	 * @param  {String} field
+	 * @param  {String} dir
+	 */
+	Grid.prototype.sort = function(field,dir){
+		this.store.sort(field,dir);
+		this.updateGridContent();
+	};
+
 
 	Grid.prototype.mask = function() {
 

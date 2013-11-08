@@ -72,10 +72,12 @@
             if (settings.name) {
                 me.name = settings.name;
             }
+            me.sorters = settings.sorters;
+            me.filters = settings.filters;
 
         }
         init();
-        
+
     }
 
     /**
@@ -174,8 +176,7 @@
             i, j, k, l,
             dataObj,
             tmpObj,
-            storeData = [],
-            sorters;
+            storeData = [];
 
         l = fields.length;
 
@@ -196,11 +197,10 @@
         }
         me.data = storeData;
         me.count = j;
-        if (me.settings.sorters) {
-            sorters = me.settings.sorters;
-            for (k = 0, l = sorters.length; k < l; k++) {
-                me.sort(sorters[k].field, sorters[k].dir);
-            }
+        if (me.sorters) {
+            $.each(me.sorters, function(key, value) {
+                me.sort(key, value, true);
+            });
         }
         me.settings.load.call(me, me, me.data);
         me.trigger('load', [me, me.data]);
@@ -243,9 +243,10 @@
      * @public
      * @param {string} field - The field name with respect to which the sorting needs to be done
      * @param {string} direction - The direction of sorting 'ASC' or 'DESC'
+     * @param {boolean} doNotAddSorter Set to true when calling sort method while iterating through a list of sorters
      */
 
-    Store.prototype.sort = function(field, direction) {
+    Store.prototype.sort = function(field, direction, doNotAddSorter) {
         var aVal, bVal;
         if (!field) {
             throw new Error('Fieldname is required.');
@@ -253,6 +254,13 @@
         if (!this.data || this.data.length === 0) {
             return;
         }
+        if (!this.sorters) {
+            this.sorters = {};
+        }
+        if (!doNotAddSorter) {
+            this.sorters[field] = direction;
+        }
+
         if (direction && direction.toUpperCase() === 'DESC') {
             this.data.sort(function(a, b) {
                 aVal = a._transform(field);
@@ -457,7 +465,7 @@
                 rows.push(val);
             }
         });
-        return rows.length === 0?null : rows.length === 1 ? rows[0] : rows;
+        return rows.length === 0 ? null : rows.length === 1 ? rows[0] : rows;
     };
 
     /**

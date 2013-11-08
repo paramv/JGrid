@@ -105,6 +105,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
  */
 
 (function($) {
+	'use strict';
+
+	var tableTemplate = '<table class="jgrid-table"><thead><tr>{{#.}}<td>{{header}}</td>{{/.}}</tr></thead>' +
+		'<tbody class="jgrid-table-body"></tbody></table>',
+		rowTemplate = '{{#.}}<tr class="jgrid-table-row">{{#columns}}<td>{{.}}</td>{{/columns}}</tr>{{/.}}',
+		attachEvents;
 	/**
 	 * The Grid constructor. Used to create an instance of the grid.
 	 * @param {object} store - The store instance that needs to be bound to the grid.
@@ -114,7 +120,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 	 * @param {object} options - Additional set of options to be passed to the grid.
 	 */
 
-	function Grid(store, columns, target, templates, options) {
+	function Grid(store, options) {
 		var me = this;
 		/**
 		 * Constructor method
@@ -122,14 +128,25 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 		 */
 
 		function init() {
-			var defaults = {},
+			var defaults = {
+				'templates': {
+					'tableTpl': tableTemplate,
+					'rowTpl': rowTemplate
+				}
+			},
 				defaultTemplates,
 				settings,
 				listeners,
 				maskEl,
 				loaderEl,
 				loaderElLeft,
-				loaderElTop;
+				loaderElTop,
+				columns,
+				target;
+
+			me.settings = settings = $.extend(true, defaults, options);
+			columns = settings.columns;
+			target = settings.target;
 
 			if (!(store instanceof Store)) {
 				throw new Error('First argument should be an instance of Store');
@@ -141,62 +158,20 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 				throw new Error('Invalid target');
 			}
 
-			defaultTemplates = {
-				'table': 'view/table-template.mustache',
-				'parentRow': 'view/parentrow-template.mustache',
-				'childRow': 'view/childrow-template.mustache',
-				'column': 'view/columns-template.mustache'
-			};
-			me.templates = $.extend(defaultTemplates, templates);
-			me.settings = settings = $.extend(true, defaults, options);
 			me.store = store;
-			me.columns = columns || null;
+			me.columns = columns;
 			me.el = typeof target === 'string' ? $('#' + target) : $(target);
+			me.templates = settings.templates;
 			me.eventMap = {};
 
+			// me.templates = $.extend(defaultTemplates, templates);
 
-			maskEl = $('<div class="cigrid-mask"></div>');
-			maskEl.width(me.el.width());
-			loaderEl = $('<div class="cigrid-loader"></div>');
-			loaderElLeft = maskEl.width() / 2 - loaderEl.width() / 2;
-			loaderElTop = 70;
-			loaderEl.css({
-				'position': 'absolute',
-				'top': loaderElTop,
-				'left': loaderElLeft
-			});
-			maskEl.append(loaderEl);
-
-			me.maskEl = maskEl;
-			if (me.settings.listeners) {
-				listeners = me.settings.listeners;
-				$.map(listeners, function(val, key) {
-					me.on(key, val);
-				});
+			/*Update the grid on init*/
+			if (!settings.deferUpdate) {
+				me.load();
 			}
-
-			if (!me.store.isStoreLoaded && !me.store.isStoreLoading && !me.store.autoLoad) {
-				me.el.append(me.maskEl);
-				me.store.load();
-			}
-
 		}
 		init();
-		if (me.store.isStoreLoaded) {
-			if (typeof me.settings.mergeColumns === 'string') {
-				me.columns = getColumnsFromPath(me.settings.mergeColumns, me.store, me.columns);
-			}
-			me.renderGrid();
-		} else {
-			me.store.on('load', function _onStoreLoaded() {
-				me.maskEl.remove();
-				if (typeof me.settings.mergeColumns === 'string') {
-					me.columns = getColumnsFromPath(me.settings.mergeColumns, me.store, me.columns);
-				}
-				me.renderGrid();
-				me.off('load', _onStoreLoaded);
-			});
-		}
 	}
 
 	/**
@@ -246,7 +221,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 	 * @param  {string} eventName - Attaches the specified event to the grid.
 	 */
 
-	function attachEvents(eventName) {
+	attachEvents = function(eventName) {
 		var me = this,
 			rows,
 			onRowClickFn;
@@ -261,11 +236,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 			me.trigger(eventName, [me, record, row]);
 		};
 		if (eventName === 'rowclick') {
-			rows = this.gridEl.find('tr.cigrid-table-row');
-			rows.on('click', onRowClickFn);
+			this.gridEl.on('click', 'tr.jgrid-table-row', onRowClickFn);
 
 		}
-	}
+	};
 
 	/*
 	 * Grid extends EventListener
@@ -278,24 +252,14 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 	 * @method
 	 * @protected
 	 */
-	Grid.prototype.renderGrid = function() {
-		var tableTemplate = this.templates.table,
-			rowTemplate = this.templates.parentRow,
+	Grid.prototype._renderGrid = function() {
+		var tableTemplate = this.templates.tableTpl,
 			headerFragment,
 			bodyFragment,
-			rows = [],
 			columns = this.columns,
-			groups,
-			columnObject,
-			rowObj,
 			store = this.store,
 			i,
 			j = columns.length,
-			k, l,
-			colValue,
-			colName,
-			groupColName,
-			renderer,
 			gridClassName,
 			gridEl,
 			beforeRenderBool = true;
@@ -310,14 +274,84 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 		/**
 		 * Render the grid head
 		 */
-		headerFragment = can.view(tableTemplate, this.columns);
+		headerFragment = Mustache.render(tableTemplate, this.columns);
 
 
 		/**
 		 * Render the grid body
 		 */
+		bodyFragment = this._createBodyFragment();
+
+
+		/**
+		 * Grid post processing - attaching classes, events etc
+		 */
+		gridEl = this.el.find('table');
+		if (this.settings.className) {
+			gridClassName = this.settings.className;
+			if (gridClassName instanceof Array) {
+				for (i = 0, j = gridClassName.length; i < j; i++) {
+					gridEl.addClass(gridClassName[i]);
+				}
+			} else {
+				gridEl.addClass(gridClassName);
+			}
+		}
+		if (this.settings.id) {
+			gridEl.attr('id', this.settings.id);
+
+		}
+
+
+		beforeRenderBool = this.trigger('beforerender', [this.el, [headerFragment, bodyFragment]]);
+		if (beforeRenderBool === false) {
+			return;
+		}
+
+		this.el.append(headerFragment);
+		this.el.find('tbody.jgrid-table-body').append(bodyFragment);
+
+		this.gridEl = this.el.find('table');
+		attachEvents.call(this, 'rowclick');
+		this.trigger('afterrender', [this.el, this.el.find('table')]);
+
+	};
+
+	/** 
+	 * Creates the table body fragment
+	 * @return {HTML DocumentFragment Object}
+	 */
+	Grid.prototype._createBodyFragment = function() {
+		var bodyFragment,
+			rowTemplate = this.templates.rowTpl,
+			rows = [],
+			columns = this.columns,
+			groups,
+			columnObject,
+			rowObj,
+			store,
+			i,
+			j = columns.length,
+			k, l,
+			colValue,
+			colName,
+			groupColName,
+			renderer,
+			filter;
+
+
+			store = this.store;
+			filter = store.filter;
+
+			if(filter.field && filter.value){
+				store = $(store.find(filter.field,filter.value));
+			}
+			
+		/**
+		 * Render the grid body
+		 */
 		store.each(function(idx, val) {
-			rowObj = {};
+			rowObj = [];
 			for (i = 0; i < j; i++) {
 				/*
 				Handle group logic.
@@ -349,7 +383,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 					if (renderer && typeof renderer === 'function') {
 						colValue = renderer(colValue, val);
 					}
-					rowObj[colName] = colValue;
+					rowObj.push(colValue);
 				}
 
 			}
@@ -359,42 +393,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 			});
 
 		});
-		bodyFragment = can.view(rowTemplate, rows);
-
-
-		/**
-		 * Grid post processing - attaching classes, events etc
-		 */
-		gridEl = this.el.find('table');
-		if (this.settings.className) {
-			gridClassName = this.settings.className;
-			if (gridClassName instanceof Array) {
-				for (i = 0, j = gridClassName.length; i < j; i++) {
-					gridEl.addClass(gridClassName[i]);
-				}
-			} else {
-				gridEl.addClass(gridClassName);
-			}
-		}
-		if (this.settings.id) {
-			gridEl.attr('id', this.settings.id);
-
-		}
-
-
-		beforeRenderBool = this.trigger('beforerender', [this.el, [headerFragment, bodyFragment]]);
-		if (beforeRenderBool === false) {
-			return;
-		}
-
-		this.el.append(headerFragment);
-		this.el.find('tbody.cigrid-table-body').append(bodyFragment);
-
-		this.gridEl = this.el.find('table');
-		attachEvents.call(this, 'rowclick');
-		this.trigger('afterrender', [this.el, this.el.find('table')]);
-
+		return Mustache.render(rowTemplate, rows);
 	};
+
 	/**
 	 * This method can be used to update the grid by calling the store's load method
 	 * @method
@@ -402,24 +403,30 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 	 * @param {string} url - The new url for loading the store
 	 * @param {object} params - The new set of paramaters to be sent along with the request for loading the store
 	 */
-	Grid.prototype.update = function(url, params) {
+	Grid.prototype.load = function(url, params) {
 		var args = Array.prototype.slice.call(arguments),
 			me = this,
 			_onStoreLoad;
-		me.gridEl.remove();
-		me.el.append(this.maskEl);
+
 
 		_onStoreLoad = function onStoreLoad() {
-			me.maskEl.remove();
+
 			if (me.columns === true) {
 				me.columns = getColumnsFromPath(me.columns, me.store);
 			}
-			me.renderGrid();
+			me._renderGrid();
 			me.off('load', _onStoreLoad);
 		};
 
 		this.store.on('load', _onStoreLoad);
 		this.store.load.apply(this.store, args);
+	};
+
+	/** 
+	 * Function to be called whenever there is a change in the grid's store.
+	 */
+	Grid.prototype.updateGridContent = function() {
+		this.gridEl.find('tbody.jgrid-table-body').html(this._createBodyFragment());
 	};
 
 	/**
@@ -442,6 +449,36 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 	 */
 	Grid.prototype.empty = function() {
 		this.gridEl.remove();
+	};
+
+	/**
+	 * Call the underlying store's sort method
+	 * @param  {String} field
+	 * @param  {String} dir
+	 */
+	Grid.prototype.sort = function(field,dir){
+		this.store.sort(field,dir);
+		this.updateGridContent();
+	};
+
+	/**
+	 * Filter the store based on the field and value
+	 * @param  {string} field
+	 * @param  {string} value
+	 */
+	Grid.prototype.filter = function(field,value){
+		this.store.filter.field = field;
+		this.store.filter.value = value;
+		this.updateGridContent();
+	};
+
+
+	Grid.prototype.mask = function() {
+
+	};
+
+	Grid.prototype.unmask = function() {
+
 	};
 	window.Grid = Grid;
 }(jQuery));
@@ -483,6 +520,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
             me.modelId = '_model' + ts;
             me.fields = modelFields;
             me.length = modelFields.length;
+
+            Record.prototype.Model = me;
             if (hasMany && typeof hasMany === 'boolean') {
                 me.hasMany = {};
                 me.hasMany.mapping = 'children';
@@ -530,6 +569,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
         }
     }
 
+
+
     /**
      * Retrieves the value of a given field in a record
      * @param {string} field - The field name
@@ -537,6 +578,37 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
      */
     Record.prototype.get = function(field) {
         return this.data[field] || null;
+    };
+
+
+    /**
+     * Transforms the value of the field according to its data-type.
+     * @private
+     * @param  {mixed} field
+     * @return {mixed} The transformed value
+     */
+    Record.prototype._transform = function(field) {
+        var model = this.Model,
+            fieldDescriptor;
+
+        fieldDescriptor = $.grep(model.fields, function(value) {
+            return value.name === field;
+        })[0];
+        if(!fieldDescriptor){
+            throw new Error('Field is empty or undefined');
+        }
+        switch (fieldDescriptor.type) {
+            case 'number':
+                return parseInt(this.get(field), 10);
+            case 'float':
+                return parseFloat(this.get(field), 10);
+            case 'currency':
+                return parseInt(this.get(field).replace(/[^\d]/gi, ''), 10);
+            default:
+                return this.get(field);
+
+        }
+
     };
 
     /**
@@ -574,13 +646,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
 
 
         defaults = {
-            autoLoad: true,
-            /**
-             * Store's load event
-             * @event
-             * @param {object} store - A reference to the current instance of the store
-             * @param {array} data - An array of the store's records
-             */
             load: function(store, data) {}
         };
         me.settings = settings = $.extend(defaults, options);
@@ -633,12 +698,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
             if (settings.name) {
                 me.name = settings.name;
             }
+            me.sorters = settings.sorters;
+            me.filter = settings.filter || {};
 
         }
         init();
-        if (me.settings.autoLoad) {
-            getData.call(me);
-        }
+
     }
 
     /**
@@ -646,7 +711,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
      * @protected
      */
 
-    getData = function () {
+    getData = function() {
         var me = this;
         me.isStoreLoading = true;
         if (me.proxy.type === 'ajax') {
@@ -656,7 +721,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
                 dataType: 'json',
                 data: $.extend(me.proxy.extraParams, me.proxy.params),
                 success: function(data) {
-                    if (typeof data === 'string'){
+                    if (typeof data === 'string') {
                         data = JSON.parse(data);
                     }
                     me.isStoreLoaded = true;
@@ -679,7 +744,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
      * @param {object} data - The response data if XHR succeeds
      */
 
-    onAjaxSuccess = function (data) {
+    onAjaxSuccess = function(data) {
         var rootData = $.extend({}, data),
             recordData,
             root,
@@ -689,7 +754,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
         root = me.proxy.root;
         if (root.indexOf('[') >= 0) {
             idx = root.substring(root.indexOf('[') + 1, root.indexOf(']'));
-            idx = parseInt(idx,110);
+            idx = parseInt(idx, 110);
             root = root.substring(0, root.indexOf('['));
         }
         rootData = root ? data[root] : data;
@@ -729,7 +794,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
      * @param {object} data - The data retrieved from the AJAX request
      */
 
-    processData = function (data) {
+    processData = function(data) {
         var me = this,
             model = me.model,
             rawData = data,
@@ -737,8 +802,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
             i, j, k, l,
             dataObj,
             tmpObj,
-            storeData = [],
-            sorters;
+            storeData = [];
 
         l = fields.length;
 
@@ -759,11 +823,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
         }
         me.data = storeData;
         me.count = j;
-        if (me.settings.sorters) {
-            sorters = me.settings.sorters;
-            for (k = 0, l = sorters.length; k < l; k++) {
-                me.sort(sorters[k].field, sorters[k].dir);
-            }
+        if (me.sorters) {
+            $.each(me.sorters, function(key, value) {
+                me.sort(key, value, true);
+            });
         }
         me.settings.load.call(me, me, me.data);
         me.trigger('load', [me, me.data]);
@@ -797,6 +860,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
         }
         this.isStoreLoaded = false;
         getData.call(this);
+        return this;
     };
 
     /**
@@ -805,20 +869,31 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
      * @public
      * @param {string} field - The field name with respect to which the sorting needs to be done
      * @param {string} direction - The direction of sorting 'ASC' or 'DESC'
+     * @param {boolean} doNotAddSorter Set to true when calling sort method while iterating through a list of sorters
      */
 
-    Store.prototype.sort = function(field, direction) {
+    Store.prototype.sort = function(field, direction, doNotAddSorter) {
+        var aVal, bVal;
         if (!field) {
             throw new Error('Fieldname is required.');
         }
         if (!this.data || this.data.length === 0) {
             return;
         }
-        if (direction === 'DESC') {
+        if (!this.sorters) {
+            this.sorters = {};
+        }
+        if (!doNotAddSorter) {
+            this.sorters[field] = direction;
+        }
+
+        if (direction && direction.toUpperCase() === 'DESC') {
             this.data.sort(function(a, b) {
-                if (a[field] < b[field]) {
+                aVal = a._transform(field);
+                bVal = b._transform(field);
+                if (aVal < bVal) {
                     return 1;
-                } else if (a[field] > b[field]) {
+                } else if (aVal > bVal) {
                     return -1;
                 } else {
                     return 0;
@@ -826,9 +901,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
             });
         } else {
             this.data.sort(function(a, b) {
-                if (a[field] > b[field]) {
+                aVal = a._transform(field);
+                bVal = b._transform(field);
+                if (aVal > bVal) {
                     return 1;
-                } else if (a[field] < b[field]) {
+                } else if (aVal < bVal) {
                     return -1;
                 } else {
                     return 0;
@@ -987,10 +1064,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
      * @param {string} value - The value of the field to search with
      * @param {boolean} caseSensitive - If set to true performs a case sensitive match, defaults to false
      * @param {boolean} anyMatch - If set to true finds a string even if a substring match is true, defaults to false
-     * @returns {object} record - The record instance or null
+     * @returns {object} record - The record instance(s) or null
      */
     Store.prototype.find = function(field, value, caseSensitive, anyMatch) {
-        var row = null,
+        var rows = [],
             isCaseSensitive = (caseSensitive === true) || false,
             isAnyMatch = (anyMatch === true) || false,
             regEx,
@@ -1011,11 +1088,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
         this.each(function(i, val) {
             _val = val.get(field);
             if (regEx.test(_val)) {
-                row = val;
-                return false;
+                rows.push(val);
             }
         });
-        return row;
+        return rows.length === 0 ? null : rows.length === 1 ? rows[0] : rows;
     };
 
     /**

@@ -3,10 +3,12 @@
  */
 
 (function($) {
+	'use strict';
 
 	var tableTemplate = '<table class="jgrid-table"><thead><tr>{{#.}}<td>{{header}}</td>{{/.}}</tr></thead>' +
 		'<tbody class="jgrid-table-body"></tbody></table>',
-		rowTemplate = '{{#.}}<tr class="jgrid-table-row">{{#columns}}<td>{{.}}</td>{{/columns}}</tr>{{/.}}';
+		rowTemplate = '{{#.}}<tr class="jgrid-table-row">{{#columns}}<td>{{.}}</td>{{/columns}}</tr>{{/.}}',
+		attachEvents;
 	/**
 	 * The Grid constructor. Used to create an instance of the grid.
 	 * @param {object} store - The store instance that needs to be bound to the grid.
@@ -117,7 +119,7 @@
 	 * @param  {string} eventName - Attaches the specified event to the grid.
 	 */
 
-	function attachEvents(eventName) {
+	attachEvents = function(eventName) {
 		var me = this,
 			rows,
 			onRowClickFn;
@@ -135,7 +137,7 @@
 			this.gridEl.on('click', 'tr.jgrid-table-row', onRowClickFn);
 
 		}
-	}
+	};
 
 	/*
 	 * Grid extends EventListener
@@ -225,14 +227,24 @@
 			groups,
 			columnObject,
 			rowObj,
-			store = this.store,
+			store,
 			i,
 			j = columns.length,
 			k, l,
 			colValue,
 			colName,
 			groupColName,
-			renderer;
+			renderer,
+			filter;
+
+
+			store = this.store;
+			filter = store.filter;
+
+			if(filter.field && filter.value){
+				store = $(store.find(filter.field,filter.value));
+			}
+			
 		/**
 		 * Render the grid body
 		 */
@@ -344,6 +356,17 @@
 	 */
 	Grid.prototype.sort = function(field,dir){
 		this.store.sort(field,dir);
+		this.updateGridContent();
+	};
+
+	/**
+	 * Filter the store based on the field and value
+	 * @param  {string} field
+	 * @param  {string} value
+	 */
+	Grid.prototype.filter = function(field,value){
+		this.store.filter.field = field;
+		this.store.filter.value = value;
 		this.updateGridContent();
 	};
 

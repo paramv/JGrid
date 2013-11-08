@@ -73,7 +73,7 @@
                 me.name = settings.name;
             }
             me.sorters = settings.sorters;
-            me.filters = settings.filters;
+            me.filter = settings.filter || {};
 
         }
         init();

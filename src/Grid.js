@@ -3,6 +3,10 @@
  */
 
 (function($) {
+
+	var tableTemplate = '<table class="jgrid-table"><thead><tr>{{#.}}<td>{{header}}</td>{{/.}}</tr></thead>' +
+		'<tbody class="jgrid-table-body"></tbody></table>',
+		rowTemplate = '{{#.}}<tr class="jgrid-table-row">{{#columns}}<td>{{.}}</td>{{/columns}}</tr>{{/.}}';
 	/**
 	 * The Grid constructor. Used to create an instance of the grid.
 	 * @param {object} store - The store instance that needs to be bound to the grid.
@@ -12,7 +16,7 @@
 	 * @param {object} options - Additional set of options to be passed to the grid.
 	 */
 
-	function Grid(store, columns, target, templates, options) {
+	function Grid(store, options) {
 		var me = this;
 		/**
 		 * Constructor method
@@ -20,14 +24,25 @@
 		 */
 
 		function init() {
-			var defaults = {},
+			var defaults = {
+				'templates': {
+					'tableTpl': tableTemplate,
+					'rowTpl': rowTemplate
+				}
+			},
 				defaultTemplates,
 				settings,
 				listeners,
 				maskEl,
 				loaderEl,
 				loaderElLeft,
-				loaderElTop;
+				loaderElTop,
+				columns,
+				target;
+
+			me.settings = settings = $.extend(true, defaults, options);
+			columns = settings.columns;
+			target = settings.target;
 
 			if (!(store instanceof Store)) {
 				throw new Error('First argument should be an instance of Store');
@@ -39,62 +54,20 @@
 				throw new Error('Invalid target');
 			}
 
-			defaultTemplates = {
-				'table': 'view/table-template.mustache',
-				'parentRow': 'view/parentrow-template.mustache',
-				'childRow': 'view/childrow-template.mustache',
-				'column': 'view/columns-template.mustache'
-			};
-			me.templates = $.extend(defaultTemplates, templates);
-			me.settings = settings = $.extend(true, defaults, options);
 			me.store = store;
-			me.columns = columns || null;
+			me.columns = columns;
 			me.el = typeof target === 'string' ? $('#' + target) : $(target);
+			me.templates = settings.templates;
 			me.eventMap = {};
 
+			// me.templates = $.extend(defaultTemplates, templates);
 
-			maskEl = $('<div class="cigrid-mask"></div>');
-			maskEl.width(me.el.width());
-			loaderEl = $('<div class="cigrid-loader"></div>');
-			loaderElLeft = maskEl.width() / 2 - loaderEl.width() / 2;
-			loaderElTop = 70;
-			loaderEl.css({
-				'position': 'absolute',
-				'top': loaderElTop,
-				'left': loaderElLeft
-			});
-			maskEl.append(loaderEl);
-
-			me.maskEl = maskEl;
-			if (me.settings.listeners) {
-				listeners = me.settings.listeners;
-				$.map(listeners, function(val, key) {
-					me.on(key, val);
-				});
+			/*Update the grid on init*/
+			if (!settings.deferUpdate) {
+				me.load();
 			}
-
-			if (!me.store.isStoreLoaded && !me.store.isStoreLoading && !me.store.autoLoad) {
-				me.el.append(me.maskEl);
-				me.store.load();
-			}
-
 		}
 		init();
-		if (me.store.isStoreLoaded) {
-			if (typeof me.settings.mergeColumns === 'string') {
-				me.columns = getColumnsFromPath(me.settings.mergeColumns, me.store, me.columns);
-			}
-			me.renderGrid();
-		} else {
-			me.store.on('load', function _onStoreLoaded() {
-				me.maskEl.remove();
-				if (typeof me.settings.mergeColumns === 'string') {
-					me.columns = getColumnsFromPath(me.settings.mergeColumns, me.store, me.columns);
-				}
-				me.renderGrid();
-				me.off('load', _onStoreLoaded);
-			});
-		}
 	}
 
 	/**
@@ -159,8 +132,7 @@
 			me.trigger(eventName, [me, record, row]);
 		};
 		if (eventName === 'rowclick') {
-			rows = this.gridEl.find('tr.cigrid-table-row');
-			rows.on('click', onRowClickFn);
+			this.gridEl.on('click', 'tr.jgrid-table-row', onRowClickFn);
 
 		}
 	}
@@ -176,24 +148,14 @@
 	 * @method
 	 * @protected
 	 */
-	Grid.prototype.renderGrid = function() {
-		var tableTemplate = this.templates.table,
-			rowTemplate = this.templates.parentRow,
+	Grid.prototype._renderGrid = function() {
+		var tableTemplate = this.templates.tableTpl,
 			headerFragment,
 			bodyFragment,
-			rows = [],
 			columns = this.columns,
-			groups,
-			columnObject,
-			rowObj,
 			store = this.store,
 			i,
 			j = columns.length,
-			k, l,
-			colValue,
-			colName,
-			groupColName,
-			renderer,
 			gridClassName,
 			gridEl,
 			beforeRenderBool = true;
@@ -208,14 +170,74 @@
 		/**
 		 * Render the grid head
 		 */
-		headerFragment = can.view(tableTemplate, this.columns);
+		headerFragment = Mustache.render(tableTemplate, this.columns);
 
 
 		/**
 		 * Render the grid body
 		 */
+		bodyFragment = this._createBodyFragment();
+
+
+		/**
+		 * Grid post processing - attaching classes, events etc
+		 */
+		gridEl = this.el.find('table');
+		if (this.settings.className) {
+			gridClassName = this.settings.className;
+			if (gridClassName instanceof Array) {
+				for (i = 0, j = gridClassName.length; i < j; i++) {
+					gridEl.addClass(gridClassName[i]);
+				}
+			} else {
+				gridEl.addClass(gridClassName);
+			}
+		}
+		if (this.settings.id) {
+			gridEl.attr('id', this.settings.id);
+
+		}
+
+
+		beforeRenderBool = this.trigger('beforerender', [this.el, [headerFragment, bodyFragment]]);
+		if (beforeRenderBool === false) {
+			return;
+		}
+
+		this.el.append(headerFragment);
+		this.el.find('tbody.jgrid-table-body').append(bodyFragment);
+
+		this.gridEl = this.el.find('table');
+		attachEvents.call(this, 'rowclick');
+		this.trigger('afterrender', [this.el, this.el.find('table')]);
+
+	};
+
+	/** 
+	 * Creates the table body fragment
+	 * @return {HTML DocumentFragment Object}
+	 */
+	Grid.prototype._createBodyFragment = function() {
+		var bodyFragment,
+			rowTemplate = this.templates.rowTpl,
+			rows = [],
+			columns = this.columns,
+			groups,
+			columnObject,
+			rowObj,
+			store = this.store,
+			i,
+			j = columns.length,
+			k, l,
+			colValue,
+			colName,
+			groupColName,
+			renderer;
+		/**
+		 * Render the grid body
+		 */
 		store.each(function(idx, val) {
-			rowObj = {};
+			rowObj = [];
 			for (i = 0; i < j; i++) {
 				/*
 				Handle group logic.
@@ -247,7 +269,7 @@
 					if (renderer && typeof renderer === 'function') {
 						colValue = renderer(colValue, val);
 					}
-					rowObj[colName] = colValue;
+					rowObj.push(colValue);
 				}
 
 			}
@@ -257,42 +279,9 @@
 			});
 
 		});
-		bodyFragment = can.view(rowTemplate, rows);
-
-
-		/**
-		 * Grid post processing - attaching classes, events etc
-		 */
-		gridEl = this.el.find('table');
-		if (this.settings.className) {
-			gridClassName = this.settings.className;
-			if (gridClassName instanceof Array) {
-				for (i = 0, j = gridClassName.length; i < j; i++) {
-					gridEl.addClass(gridClassName[i]);
-				}
-			} else {
-				gridEl.addClass(gridClassName);
-			}
-		}
-		if (this.settings.id) {
-			gridEl.attr('id', this.settings.id);
-
-		}
-
-
-		beforeRenderBool = this.trigger('beforerender', [this.el, [headerFragment, bodyFragment]]);
-		if (beforeRenderBool === false) {
-			return;
-		}
-
-		this.el.append(headerFragment);
-		this.el.find('tbody.cigrid-table-body').append(bodyFragment);
-
-		this.gridEl = this.el.find('table');
-		attachEvents.call(this, 'rowclick');
-		this.trigger('afterrender', [this.el, this.el.find('table')]);
-
+		return Mustache.render(rowTemplate, rows);
 	};
+
 	/**
 	 * This method can be used to update the grid by calling the store's load method
 	 * @method
@@ -300,24 +289,30 @@
 	 * @param {string} url - The new url for loading the store
 	 * @param {object} params - The new set of paramaters to be sent along with the request for loading the store
 	 */
-	Grid.prototype.update = function(url, params) {
+	Grid.prototype.load = function(url, params) {
 		var args = Array.prototype.slice.call(arguments),
 			me = this,
 			_onStoreLoad;
-		me.gridEl.remove();
-		me.el.append(this.maskEl);
+
 
 		_onStoreLoad = function onStoreLoad() {
-			me.maskEl.remove();
+
 			if (me.columns === true) {
 				me.columns = getColumnsFromPath(me.columns, me.store);
 			}
-			me.renderGrid();
+			me._renderGrid();
 			me.off('load', _onStoreLoad);
 		};
 
 		this.store.on('load', _onStoreLoad);
 		this.store.load.apply(this.store, args);
+	};
+
+	/** 
+	 * Function to be called whenever there is a change in the grid's store.
+	 */
+	Grid.prototype.updateGridContent = function() {
+		this.gridEl.find('tbody.jgrid-table-body').html(this._createBodyFragment());
 	};
 
 	/**
@@ -340,6 +335,15 @@
 	 */
 	Grid.prototype.empty = function() {
 		this.gridEl.remove();
+	};
+
+
+	Grid.prototype.mask = function() {
+
+	};
+
+	Grid.prototype.unmask = function() {
+
 	};
 	window.Grid = Grid;
 }(jQuery));

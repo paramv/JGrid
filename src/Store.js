@@ -20,13 +20,6 @@
 
 
         defaults = {
-            autoLoad: true,
-            /**
-             * Store's load event
-             * @event
-             * @param {object} store - A reference to the current instance of the store
-             * @param {array} data - An array of the store's records
-             */
             load: function(store, data) {}
         };
         me.settings = settings = $.extend(defaults, options);
@@ -82,9 +75,7 @@
 
         }
         init();
-        if (me.settings.autoLoad) {
-            getData.call(me);
-        }
+        
     }
 
     /**
@@ -92,7 +83,7 @@
      * @protected
      */
 
-    getData = function () {
+    getData = function() {
         var me = this;
         me.isStoreLoading = true;
         if (me.proxy.type === 'ajax') {
@@ -102,7 +93,7 @@
                 dataType: 'json',
                 data: $.extend(me.proxy.extraParams, me.proxy.params),
                 success: function(data) {
-                    if (typeof data === 'string'){
+                    if (typeof data === 'string') {
                         data = JSON.parse(data);
                     }
                     me.isStoreLoaded = true;
@@ -125,7 +116,7 @@
      * @param {object} data - The response data if XHR succeeds
      */
 
-    onAjaxSuccess = function (data) {
+    onAjaxSuccess = function(data) {
         var rootData = $.extend({}, data),
             recordData,
             root,
@@ -135,7 +126,7 @@
         root = me.proxy.root;
         if (root.indexOf('[') >= 0) {
             idx = root.substring(root.indexOf('[') + 1, root.indexOf(']'));
-            idx = parseInt(idx,110);
+            idx = parseInt(idx, 110);
             root = root.substring(0, root.indexOf('['));
         }
         rootData = root ? data[root] : data;
@@ -175,7 +166,7 @@
      * @param {object} data - The data retrieved from the AJAX request
      */
 
-    processData = function (data) {
+    processData = function(data) {
         var me = this,
             model = me.model,
             rawData = data,
@@ -243,6 +234,7 @@
         }
         this.isStoreLoaded = false;
         getData.call(this);
+        return this;
     };
 
     /**
@@ -254,17 +246,20 @@
      */
 
     Store.prototype.sort = function(field, direction) {
+        var aVal, bVal;
         if (!field) {
             throw new Error('Fieldname is required.');
         }
         if (!this.data || this.data.length === 0) {
             return;
         }
-        if (direction === 'DESC') {
+        if (direction && direction.toUpperCase() === 'DESC') {
             this.data.sort(function(a, b) {
-                if (a[field] < b[field]) {
+                aVal = a._transform(field);
+                bVal = b._transform(field);
+                if (aVal < bVal) {
                     return 1;
-                } else if (a[field] > b[field]) {
+                } else if (aVal > bVal) {
                     return -1;
                 } else {
                     return 0;
@@ -272,9 +267,11 @@
             });
         } else {
             this.data.sort(function(a, b) {
-                if (a[field] > b[field]) {
+                aVal = a._transform(field);
+                bVal = b._transform(field);
+                if (aVal > bVal) {
                     return 1;
-                } else if (a[field] < b[field]) {
+                } else if (aVal < bVal) {
                     return -1;
                 } else {
                     return 0;
@@ -433,10 +430,10 @@
      * @param {string} value - The value of the field to search with
      * @param {boolean} caseSensitive - If set to true performs a case sensitive match, defaults to false
      * @param {boolean} anyMatch - If set to true finds a string even if a substring match is true, defaults to false
-     * @returns {object} record - The record instance or null
+     * @returns {object} record - The record instance(s) or null
      */
     Store.prototype.find = function(field, value, caseSensitive, anyMatch) {
-        var row = null,
+        var rows = [],
             isCaseSensitive = (caseSensitive === true) || false,
             isAnyMatch = (anyMatch === true) || false,
             regEx,
@@ -457,11 +454,10 @@
         this.each(function(i, val) {
             _val = val.get(field);
             if (regEx.test(_val)) {
-                row = val;
-                return false;
+                rows.push(val);
             }
         });
-        return row;
+        return rows.length === 0?null : rows.length === 1 ? rows[0] : rows;
     };
 
     /**

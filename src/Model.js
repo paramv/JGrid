@@ -35,6 +35,8 @@
             me.modelId = '_model' + ts;
             me.fields = modelFields;
             me.length = modelFields.length;
+
+            Record.prototype.Model = me;
             if (hasMany && typeof hasMany === 'boolean') {
                 me.hasMany = {};
                 me.hasMany.mapping = 'children';
@@ -82,6 +84,8 @@
         }
     }
 
+
+
     /**
      * Retrieves the value of a given field in a record
      * @param {string} field - The field name
@@ -89,6 +93,37 @@
      */
     Record.prototype.get = function(field) {
         return this.data[field] || null;
+    };
+
+
+    /**
+     * Transforms the value of the field according to its data-type.
+     * @private
+     * @param  {mixed} field
+     * @return {mixed} The transformed value
+     */
+    Record.prototype._transform = function(field) {
+        var model = this.Model,
+            fieldDescriptor;
+
+        fieldDescriptor = $.grep(model.fields, function(value) {
+            return value.name === field;
+        })[0];
+        if(!fieldDescriptor){
+            throw new Error('Field is empty or undefined');
+        }
+        switch (fieldDescriptor.type) {
+            case 'number':
+                return parseInt(this.get(field), 10);
+            case 'float':
+                return parseFloat(this.get(field), 10);
+            case 'currency':
+                return parseInt(this.get(field).replace(/[^\d]/gi, ''), 10);
+            default:
+                return this.get(field);
+
+        }
+
     };
 
     /**

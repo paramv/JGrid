@@ -23,6 +23,6 @@
                 "Store": true,
                 "EventListener": true,
                 "Grid": true,
-                "can": true
+                "Mustache": true
         }
 }

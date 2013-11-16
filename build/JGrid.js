@@ -23,7 +23,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
  * @namespace  JGrid The JGrid namespace encapsulates all the components.
  */
 
-var JGrid = {};
+var JGrid = window.JGrid || {};
 
 /* Simple JavaScript Inheritance
  * By John Resig http://ejohn.org/
@@ -832,15 +832,15 @@ JGrid.Utils = {};
 	var tableTemplate = '<table class="jgrid-table"><thead><tr>{{#.}}<td>{{header}}</td>{{/.}}</tr></thead>' +
 		'<tbody class="jgrid-table-body"></tbody></table>',
 		rowTemplate = '{{#.}}<tr class="jgrid-table-row" data-id="{{recordId}}">{{#columns}}<td>{{.}}</td>{{/columns}}</tr>{{/.}}',
-		Utils,generateUUID,Class,EventListener,Store,
+		Utils, generateUUID, Class, EventListener, Store,
 		Grid;
 
 
-    Utils = JGrid.Utils;
-    generateUUID = Utils.generateUUID;
-    Class = Utils.Class;
-    EventListener = JGrid.EventListener;
-    Store = JGrid.Store;
+	Utils = JGrid.Utils;
+	generateUUID = Utils.generateUUID;
+	Class = Utils.Class;
+	EventListener = JGrid.EventListener;
+	Store = JGrid.Store;
 
 
 	/**
@@ -853,7 +853,7 @@ JGrid.Utils = {};
 	 */
 
 	Grid = EventListener.extend({
-		init: function(store, options) {
+		init: function(options) {
 			var defaults = {
 				'templates': {
 					'tableTpl': tableTemplate,
@@ -869,23 +869,43 @@ JGrid.Utils = {};
 				loaderElTop,
 				columns,
 				target,
+				store,
+				tmpModel,
+				field,
+				fields = [],
 				me = this;
 
 			me.settings = settings = $.extend(true, defaults, options);
+			store = me.settings.store;
 			columns = settings.columns;
 			target = settings.target;
 
-			if (!(store instanceof Store)) {
-				throw new Error('First argument should be an instance of Store');
-			}
+
 			if (typeof columns !== 'string' && !(columns instanceof Array)) {
 				throw new Error('Columns should be an array of column configs or should be a path to the columns object in the store.');
 			}
 			if (!target) {
 				throw new Error('Invalid target');
 			}
+			if (!store) {
+				throw new Error('Invalid store config');
+			}
+			if ((store instanceof Store)) {
+				me.store = store;
+			}else {
+				$.each(columns,function(key,val){
+					field = {};
+					field.name = val.dataIndex;
+					if(val.type){
+						field.type = val.type;
+					}
+					fields.push(field);
+				});
+				tmpModel = new JGrid.Model(fields);
+				me.store = new JGrid.Store(tmpModel,store);
+			}
 
-			me.store = store;
+
 			me.columns = columns;
 			me.el = typeof target === 'string' ? $('#' + target) : $(target);
 			me.templates = settings.templates;
@@ -905,7 +925,7 @@ JGrid.Utils = {};
 		 * @return {array}  col - The columns object
 		 */
 
-		__getColumnsFromPath:function(str, store, gridColumns) {
+		__getColumnsFromPath: function(str, store, gridColumns) {
 			var rootData,
 				root,
 				idx = -1,
@@ -952,16 +972,16 @@ JGrid.Utils = {};
 
 			if (eventName === 'rowclick') {
 				onRowClickFn = function(e) {
-				var $column = $(this),
-					record,
-					row,
-					column;
+					var $column = $(this),
+						record,
+						row,
+						column;
 
-				column = this;
-				row = $column.parents('tr.jgrid-table-row');
-				record = me.store.findById($(row).attr('data-id'));
-				me.trigger(eventName, [me, record, column,row]);
-			};
+					column = this;
+					row = $column.parents('tr.jgrid-table-row');
+					record = me.store.findById($(row).attr('data-id'));
+					me.trigger(eventName, [me, record, column, row]);
+				};
 				this.gridEl.on('click', 'tr.jgrid-table-row td', onRowClickFn);
 
 			}
@@ -1022,7 +1042,7 @@ JGrid.Utils = {};
 			}
 
 
-			beforeRenderBool = this.trigger('beforerender', [this, [this.el,headerFragment, bodyFragment]]);
+			beforeRenderBool = this.trigger('beforerender', [this, [this.el, headerFragment, bodyFragment]]);
 			if (beforeRenderBool === false) {
 				return;
 			}
@@ -1031,8 +1051,8 @@ JGrid.Utils = {};
 			this.el.find('tbody.jgrid-table-body').append(bodyFragment);
 
 			this.gridEl = this.el.find('table');
-			this.__attachEvents( 'rowclick');
-			this.trigger('afterrender', [this,this.el, this.el.find('table')]);
+			this.__attachEvents('rowclick');
+			this.trigger('afterrender', [this, this.el, this.el.find('table')]);
 
 		},
 		/** 

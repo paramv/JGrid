@@ -1,4 +1,4 @@
-var model, store, grid,gridGrouped,storeG,Model,Store,Grid;
+var model, store, grid, gridGrouped, storeG, Model, Store, Grid;
 
 Model = JGrid.Model;
 Store = JGrid.Store;
@@ -26,7 +26,15 @@ Grid = JGrid.Grid;
 		}
 	});
 
-	grid = new Grid(store, {
+	grid = new Grid({
+		'store': {
+			'proxy': {
+				'url': 'data/Data.json',
+				'type': 'ajax',
+				'root': 'data',
+				'record': 'rows'
+			}
+		},
 		'columns': [{
 			'header': 'Name',
 			'dataIndex': 'name',
@@ -40,16 +48,16 @@ Grid = JGrid.Grid;
 			'dataIndex': 'location',
 
 		}],
-		'target':'grid-one'
+		'target': 'grid-one'
 	});
 
-	var tableTemplate = '<table class="jgrid-table"><thead><tr>{{#.}}<td><p>{{header}}</p>'+
-						'<ul>{{#groups}}<li>{{.}}</li>{{/groups}}</ul>'+
-						'</td>{{/.}}</tr></thead>' +
-						'<tbody class="jgrid-table-body"></tbody></table>',
+	var tableTemplate = '<table class="jgrid-table"><thead><tr>{{#.}}<td><p>{{header}}</p>' +
+		'<ul>{{#groups}}<li>{{.}}</li>{{/groups}}</ul>' +
+		'</td>{{/.}}</tr></thead>' +
+		'<tbody class="jgrid-table-body"></tbody></table>',
 		rowTemplate = '{{#.}}<tr class="jgrid-table-row">{{#columns}}1<td><ul>{{#.}}<li>{{.}}</li>{{/.}}</ul></td>{{/columns}}</tr>{{/.}}',
 		m2;
-m2 = new Model([{
+	m2 = new Model([{
 		'name': 'name',
 		'type': 'string'
 	}, {
@@ -65,15 +73,16 @@ m2 = new Model([{
 			'root': 'data',
 			'record': 'rows'
 		},
-		'sorters':{
-			'location':'ASC'
+		'sorters': {
+			'location': 'ASC'
 		}
 	});
 
-	gridGrouped = new Grid(storeG, {
+	gridGrouped = new Grid({
+		'store': storeG,
 		'columns': [{
 			'header': 'Name',
-			'groups':['First N','Last N'],
+			'groups': ['First N', 'Last N'],
 			'dataIndex': 'name',
 
 		}, {
@@ -81,11 +90,11 @@ m2 = new Model([{
 			'dataIndex': 'location',
 
 		}],
-		'templates':{
-			'tableTpl':tableTemplate,
-			'rowTpl':rowTemplate
+		'templates': {
+			'tableTpl': tableTemplate,
+			'rowTpl': rowTemplate
 		},
-		'target':'grid-two'
+		'target': 'grid-two'
 	});
 
 }());

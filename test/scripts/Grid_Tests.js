@@ -1,8 +1,8 @@
 module("Grid");
-asyncTest("Grid tests", 2,function() {
+asyncTest("Grid tests", 2, function() {
 	var Model = JGrid.Model,
-		Store = JGrid.Store;
-		Grid = JGrid.Grid;
+		Store = JGrid.Store,
+	Grid = JGrid.Grid;
 
 
 	var model = new Model([{
@@ -23,7 +23,8 @@ asyncTest("Grid tests", 2,function() {
 		}
 	});
 
-	var grid = new Grid(_store, {
+	var grid = new Grid({
+		'store': _store,
 		'columns': [{
 			'header': 'Name',
 			'dataIndex': 'name',
@@ -37,16 +38,16 @@ asyncTest("Grid tests", 2,function() {
 			'dataIndex': 'location',
 
 		}],
-		'target':'grid-one'
+		'target': 'grid-one'
 	});
-	grid.on('beforerender',function(g){
-		ok(!g.gridEl,'Grid before - render');
+	grid.on('beforerender', function(g) {
+		ok(!g.gridEl, 'Grid before - render');
 		start();
 
-		
+
 	});
-	grid.on('afterrender',function(g){
-		ok(g.gridEl,'Grid rendered.')
+	grid.on('afterrender', function(g) {
+		ok(g.gridEl, 'Grid rendered.')
 	});
 
 });

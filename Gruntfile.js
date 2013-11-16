@@ -22,13 +22,13 @@ module.exports = function(grunt) {
       }
     },
     qunit: {
-      files: ['test/**/*.html']
+      files: ['test/tests.html']
     },
     jshint: {
       files: ['Gruntfile.js', 'src/**/*.js', 'test/**/*.js'],
 
       options: {
-        ignores: ['test/scripts/jQuery-1.9.1.js', 'test/scripts/Mustache.js'],
+        ignores: ['test/scripts/jQuery-1.9.1.js', 'test/scripts/Mustache.js','src/Utils.js','test/**/*.js'],
         // options here to override JSHint defaults
         globals: {
           jQuery: true,

@@ -1,6 +1,9 @@
-var model, store, grid,gridGrouped;
-(function() {
+var model, store, grid,gridGrouped,storeG,Model,Store,Grid;
 
+Model = JGrid.Model;
+Store = JGrid.Store;
+Grid = JGrid.Grid;
+(function() {
 	model = new Model([{
 		'name': 'name',
 		'type': 'string'
@@ -46,9 +49,17 @@ var model, store, grid,gridGrouped;
 						'</td>{{/.}}</tr></thead>' +
 						'<tbody class="jgrid-table-body"></tbody></table>',
 		rowTemplate = '{{#.}}<tr class="jgrid-table-row">{{#columns}}1<td><ul>{{#.}}<li>{{.}}</li>{{/.}}</ul></td>{{/columns}}</tr>{{/.}}',
-		storeG;
-
-	storeG = new Store(model, {
+		m2;
+m2 = new Model([{
+		'name': 'name',
+		'type': 'string'
+	}, {
+		'name': 'age',
+		'type': 'number'
+	}, {
+		'name': 'location'
+	}]);
+	storeG = new Store(m2, {
 		'proxy': {
 			'url': 'data/DataGrouped.json',
 			'type': 'ajax',

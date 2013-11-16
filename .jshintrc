@@ -16,13 +16,8 @@
         "node": true,
         "globals": {
                 "jQuery": true,
-                "define": true,
-                "module": true,
                 "window": true,
-                "Model": true,
-                "Store": true,
-                "EventListener": true,
-                "Grid": true,
-                "Mustache": true
+                "Mustache": true,
+                "JGrid":true
         }
 }

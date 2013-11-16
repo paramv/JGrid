@@ -7,7 +7,7 @@
 
 	var tableTemplate = '<table class="jgrid-table"><thead><tr>{{#.}}<td>{{header}}</td>{{/.}}</tr></thead>' +
 		'<tbody class="jgrid-table-body"></tbody></table>',
-		rowTemplate = '{{#.}}<tr class="jgrid-table-row">{{#columns}}<td>{{.}}</td>{{/columns}}</tr>{{/.}}',
+		rowTemplate = '{{#.}}<tr class="jgrid-table-row" data-id="{{recordId}}">{{#columns}}<td>{{.}}</td>{{/columns}}</tr>{{/.}}',
 		Utils,generateUUID,Class,EventListener,Store,
 		Grid;
 
@@ -126,17 +126,19 @@
 				rows,
 				onRowClickFn;
 
-			onRowClickFn = function(e) {
-				var $row = $(this),
-					record,
-					row;
-
-				row = this;
-				record = me.store.findById($row.attr('data-id'));
-				me.trigger(eventName, [me, record, row]);
-			};
 			if (eventName === 'rowclick') {
-				this.gridEl.on('click', 'tr.jgrid-table-row', onRowClickFn);
+				onRowClickFn = function(e) {
+				var $column = $(this),
+					record,
+					row,
+					column;
+
+				column = this;
+				row = $column.parents('tr.jgrid-table-row');
+				record = me.store.findById($(row).attr('data-id'));
+				me.trigger(eventName, [me, record, column,row]);
+			};
+				this.gridEl.on('click', 'tr.jgrid-table-row td', onRowClickFn);
 
 			}
 		},
@@ -196,7 +198,7 @@
 			}
 
 
-			beforeRenderBool = this.trigger('beforerender', [this.el, [headerFragment, bodyFragment]]);
+			beforeRenderBool = this.trigger('beforerender', [this, [this.el,headerFragment, bodyFragment]]);
 			if (beforeRenderBool === false) {
 				return;
 			}
@@ -206,7 +208,7 @@
 
 			this.gridEl = this.el.find('table');
 			this.__attachEvents( 'rowclick');
-			this.trigger('afterrender', [this.el, this.el.find('table')]);
+			this.trigger('afterrender', [this,this.el, this.el.find('table')]);
 
 		},
 		/** 

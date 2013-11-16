@@ -16,6 +16,7 @@
         "node": true,
         "globals": {
                 "jQuery": true,
+                "$":true,
                 "window": true,
                 "Mustache": true,
                 "JGrid":true

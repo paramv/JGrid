@@ -177,7 +177,7 @@
             for (i = 0, j = rawData.length; i < j; i++) {
                 dataObj = rawData[i];
                 tmpObj = model.create(dataObj);
-                tmpObj.recordId = 'Record-' + model.modelId.replace('_model', '') + '-' + i;
+                tmpObj.recordId = 'Record' + model.modelId.replace('_model', '') + '-' + i;
 
                 if (model.hasMany && tmpObj.data[model.hasMany.mapping]) {
                     tmpObj[model.hasMany.mapping + 'Store'] = new Store(model.hasMany.model || model, {
@@ -306,6 +306,21 @@
             }
 
             return _row;
+        },
+        /**
+         * This method can be used to add multiple rows to the store. 
+         * @method
+         * @public
+         * @param {array} row - The rows to be inserted
+         */
+        addAll: function(rows) {
+            var i= 0,j=rows.length;
+            if(!j) {
+                return;
+            }
+            for(;i<j;i++){
+                this.add(rows[i]);
+            }
         },
         /**
          * This method can be used to add a row to the store at a given index. Only one row can be added at a time.

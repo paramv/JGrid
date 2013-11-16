@@ -22,7 +22,6 @@ Grid = JGrid.Grid;
 			'record': 'rows'
 		},
 		'load': function(s) {
-			s.sort('age', 'asc');
 			console.log(s);
 		}
 	});

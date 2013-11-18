@@ -14,7 +14,7 @@
 		 * @public
 		 * @param  {string}   event - Name of the event
 		 * @param  {Function} fn    - Callback function
-		 * @param  {[type]}   scope - Optional scope to be used for the callback
+		 * @param  {Object}   scope - Optional scope to be used for the callback
 		 */
 		on: function(event, fn, scope) {
 			if (!event) {

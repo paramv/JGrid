@@ -69,7 +69,7 @@
                 me.__onAjaxSuccess( me.proxy.data);
             }
 
-            me.id = settings.id || '_store' + generateUUID();
+            me.id = settings.id || '_store-' + generateUUID();
             if (settings.name) {
                 me.name = settings.name;
             }
@@ -351,7 +351,7 @@
             return row;
         },
         /**
-         * This method can be used to add a row to the store at a given index. Only one row can be added at a time.
+         * This method can be used to remove a row to the store at a given index.
          * @method
          * @public
          * @param {function} fn - The value of each row is passed to this function. The first row to return true is removed

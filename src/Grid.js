@@ -21,11 +21,7 @@
 
 	/**
 	 * The Grid constructor. Used to create an instance of the grid.
-	 * @param {object} store - The store instance that needs to be bound to the grid.
-	 * @param {array} columns - An array of column configurations. Pass in the path to the columns object example "data.columns".
-	 * @param {HTML element | string | object } target - The target element onto which the grid needs to be rendered
-	 * @param {object} templates - An optional object of templates to be used to render the table
-	 * @param {object} options - Additional set of options to be passed to the grid.
+	 * @param {object} options - Configuration options for the grid.
 	 */
 
 	Grid = EventListener.extend({
@@ -198,6 +194,15 @@
 			bodyFragment = this.__createBodyFragment();
 
 
+
+			beforeRenderBool = this.trigger('beforerender', [this, this.el, headerFragment, bodyFragment]);
+			if (beforeRenderBool === false) {
+				return;
+			}
+
+			this.el.append(headerFragment);
+			this.el.find('tbody.jgrid-table-body').append(bodyFragment);
+
 			/**
 			 * Grid post processing - attaching classes, events etc
 			 */
@@ -216,15 +221,6 @@
 				gridEl.attr('id', this.settings.id);
 
 			}
-
-
-			beforeRenderBool = this.trigger('beforerender', [this, [this.el, headerFragment, bodyFragment]]);
-			if (beforeRenderBool === false) {
-				return;
-			}
-
-			this.el.append(headerFragment);
-			this.el.find('tbody.jgrid-table-body').append(bodyFragment);
 
 			this.gridEl = this.el.find('table');
 			this.__attachEvents('rowclick');
@@ -351,6 +347,7 @@
 			if (this.maskEl) {
 				this.maskEl.remove();
 			}
+			this.gridEl = null;
 		},
 		/**
 		 * Used to empty the grid
@@ -361,7 +358,7 @@
 			this.gridEl.remove();
 		},
 		/**
-		 * Call the underlying store's sort method
+		 * Sort the grid by calling the underlying store's sort method
 		 * @param  {String} field
 		 * @param  {String} dir
 		 */
@@ -371,7 +368,7 @@
 		},
 
 		/**
-		 * Filter the store based on the field and value
+		 * Filter the grid based on the field and value
 		 * @param  {string} field
 		 * @param  {string} value
 		 */
